@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ file.display_name }} - SecureShare{% endblock %}
+{% block content %}
+<h2>{{ file.display_name }}</h2>
+<p><strong>File ID:</strong> {{ file.id }} &nbsp; <strong>Owner ID:</strong> {{ file.owner_id }}</p>
+<p><strong>Title:</strong> {{ file.title }}</p>
+<p><strong>Parser output:</strong> <code>{{ parser_output }}</code></p>
+<p><a class="btn" href="{{ url_for('download_file', file_id=file.id) }}">Download</a></p>
+
+<h3>Export</h3>
+<form method="post" action="{{ url_for('export_file', file_id=file.id) }}">
+  <label>Export file name</label>
+  <input type="text" name="export_name" value="export.bin">
+  <button class="btn secondary" type="submit">Export copy</button>
+</form>
+
+<p><a href="{{ url_for('dashboard') }}">&larr; Back to dashboard</a></p>
+{% endblock %}

@@ -1,0 +1,298 @@
+"""
+SecureShare - a minimal file-sharing web app used as the lab target for
+CYC386 Midterm Sprint (Fall 2026).
+
+!!! VULNERABLE BASELINE - LAB USE ONLY !!!
+This revision intentionally contains four web vulnerability classes
+required by the assignment brief:
+    1. IDOR          -> view_file()      (no ownership check)
+    2. CSRF          -> delete_file()    (no anti-CSRF token)
+    3. Clickjacking   -> no X-Frame-Options / CSP on any response
+    4. Command Injection -> export_file() (shell=True with user input)
+
+Each is fixed on its own fix/* branch later in the git history; see
+docs/SECURITY_IMPLEMENTATION.md for before/after evidence of every fix.
+Never deploy this revision outside an isolated lab environment.
+"""
+import os
+import sqlite3
+import subprocess
+from pathlib import Path
+
+from flask import (
+    Flask, g, request, redirect, url_for, render_template,
+    session, flash, send_from_directory, abort
+)
+from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+
+BASE_DIR = Path(__file__).resolve().parent
+UPLOAD_DIR = BASE_DIR / "uploads"
+EXPORT_DIR = BASE_DIR / "exports"
+DB_PATH = BASE_DIR / "secureshare.db"
+NATIVE_PARSER = BASE_DIR.parent / "native" / "parser"  # vulnerable binary
+
+UPLOAD_DIR.mkdir(exist_ok=True)
+EXPORT_DIR.mkdir(exist_ok=True)
+
+app = Flask(__name__)
+app.config["SECRET_KEY"] = "lab-only-dev-secret-change-me"  # dev only
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB
+
+
+# --------------------------------------------------------------------------
+# Database helpers
+# --------------------------------------------------------------------------
+def get_db():
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_PATH)
+        g.db.row_factory = sqlite3.Row
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(_exc):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+def init_db():
+    db = sqlite3.connect(DB_PATH)
+    db.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS files (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            owner_id INTEGER NOT NULL,
+            display_name TEXT NOT NULL,
+            stored_name TEXT NOT NULL,
+            title TEXT NOT NULL DEFAULT '',
+            uploaded_at TEXT NOT NULL DEFAULT (datetime('now')),
+            FOREIGN KEY (owner_id) REFERENCES users(id)
+        );
+        """
+    )
+    db.commit()
+    db.close()
+
+
+# --------------------------------------------------------------------------
+# Auth helpers
+# --------------------------------------------------------------------------
+def current_user():
+    uid = session.get("user_id")
+    if not uid:
+        return None
+    row = get_db().execute("SELECT * FROM users WHERE id = ?", (uid,)).fetchone()
+    return row
+
+
+def login_required(view):
+    from functools import wraps
+
+    @wraps(view)
+    def wrapped(*args, **kwargs):
+        if not current_user():
+            return redirect(url_for("login"))
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+# --------------------------------------------------------------------------
+# Routes - auth
+# --------------------------------------------------------------------------
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        if not username or not password:
+            flash("Username and password are required.")
+            return render_template("register.html")
+        db = get_db()
+        try:
+            db.execute(
+                "INSERT INTO users (username, password_hash) VALUES (?, ?)",
+                (username, generate_password_hash(password)),
+            )
+            db.commit()
+        except sqlite3.IntegrityError:
+            flash("Username already taken.")
+            return render_template("register.html")
+        flash("Account created. Please log in.")
+        return redirect(url_for("login"))
+    return render_template("register.html")
+
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        row = get_db().execute(
+            "SELECT * FROM users WHERE username = ?", (username,)
+        ).fetchone()
+        if row and check_password_hash(row["password_hash"], password):
+            session["user_id"] = row["id"]
+            session["username"] = row["username"]
+            return redirect(url_for("dashboard"))
+        flash("Invalid credentials.")
+    return render_template("login.html")
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+# --------------------------------------------------------------------------
+# Routes - dashboard / upload
+# --------------------------------------------------------------------------
+@app.route("/")
+@login_required
+def dashboard():
+    user = current_user()
+    files = get_db().execute(
+        "SELECT * FROM files WHERE owner_id = ? ORDER BY id DESC", (user["id"],)
+    ).fetchall()
+    return render_template("dashboard.html", user=user, files=files)
+
+
+@app.route("/upload", methods=["GET", "POST"])
+@login_required
+def upload():
+    user = current_user()
+    if request.method == "POST":
+        f = request.files.get("file")
+        title = request.form.get("title", "").strip() or "untitled"
+        if not f or f.filename == "":
+            flash("Choose a file first.")
+            return render_template("upload.html")
+
+        safe_name = secure_filename(f.filename)
+        stored_name = f"{user['id']}_{os.urandom(4).hex()}_{safe_name}"
+        f.save(UPLOAD_DIR / stored_name)
+
+        db = get_db()
+        db.execute(
+            "INSERT INTO files (owner_id, display_name, stored_name, title) "
+            "VALUES (?, ?, ?, ?)",
+            (user["id"], safe_name, stored_name, title),
+        )
+        db.commit()
+        flash("File uploaded.")
+        return redirect(url_for("dashboard"))
+    return render_template("upload.html")
+
+
+# --------------------------------------------------------------------------
+# VULNERABILITY 1: IDOR (Insecure Direct Object Reference)
+# --------------------------------------------------------------------------
+@app.route("/file/<int:file_id>")
+@login_required
+def view_file(file_id):
+    db = get_db()
+    # VULNERABLE: looks up the file by ID only - no check that the file
+    # belongs to the logged-in user. Any authenticated user can view any
+    # other user's file metadata/content by simply changing the ID in the
+    # URL (e.g. /file/1, /file/2, /file/3 ...).
+    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
+    if not file_row:
+        abort(404)
+
+    # Native helper call used to render the file's "title" field.
+    # (This is also the Buffer Overflow attack surface - see native/parser.c)
+    title_out = ""
+    try:
+        result = subprocess.run(
+            [str(NATIVE_PARSER), file_row["title"]],
+            capture_output=True, text=True, timeout=3,
+        )
+        title_out = result.stdout
+    except Exception as exc:  # noqa: BLE001 - lab demo, broad is fine here
+        title_out = f"(parser error: {exc})"
+
+    return render_template("file_view.html", file=file_row, parser_output=title_out)
+
+
+@app.route("/file/<int:file_id>/download")
+@login_required
+def download_file(file_id):
+    db = get_db()
+    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
+    if not file_row:
+        abort(404)
+    return send_from_directory(UPLOAD_DIR, file_row["stored_name"])
+
+
+# --------------------------------------------------------------------------
+# VULNERABILITY 2: CSRF (no anti-CSRF token on a state-changing POST)
+# --------------------------------------------------------------------------
+@app.route("/file/<int:file_id>/delete", methods=["POST"])
+@login_required
+def delete_file(file_id):
+    db = get_db()
+    user = current_user()
+    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
+    if not file_row:
+        abort(404)
+    # VULNERABLE: relies solely on the session cookie for authorization.
+    # No CSRF token is required, so a third-party page can auto-submit a
+    # hidden form to this URL and delete the victim's file while their
+    # browser silently attaches the session cookie.
+    if file_row["owner_id"] == user["id"]:
+        (UPLOAD_DIR / file_row["stored_name"]).unlink(missing_ok=True)
+        db.execute("DELETE FROM files WHERE id = ?", (file_id,))
+        db.commit()
+    return redirect(url_for("dashboard"))
+
+
+# --------------------------------------------------------------------------
+# VULNERABILITY 3: Command Injection
+# --------------------------------------------------------------------------
+@app.route("/file/<int:file_id>/export", methods=["POST"])
+@login_required
+def export_file(file_id):
+    db = get_db()
+    user = current_user()
+    file_row = db.execute(
+        "SELECT * FROM files WHERE id = ? AND owner_id = ?", (file_id, user["id"])
+    ).fetchone()
+    if not file_row:
+        abort(404)
+
+    export_name = request.form.get("export_name", "export")
+    src = UPLOAD_DIR / file_row["stored_name"]
+    dst_pattern = EXPORT_DIR / f"{export_name}"
+
+    # VULNERABLE: user-controlled `export_name` is interpolated directly
+    # into a shell command string executed with shell=True. An attacker
+    # can inject shell metacharacters (; | && `` $() ) to run arbitrary
+    # commands on the server, e.g. export_name = "x; id > pwned.txt".
+    cmd = f"cp '{src}' '{dst_pattern}'"
+    subprocess.run(cmd, shell=True)
+
+    flash(f"Exported as {export_name}")
+    return redirect(url_for("view_file", file_id=file_id))
+
+
+# --------------------------------------------------------------------------
+# VULNERABILITY 4: Clickjacking
+# --------------------------------------------------------------------------
+# VULNERABLE: no after_request handler here at all, so every response
+# (including the login page and the delete form) can be embedded in a
+# hidden/opacity-0 <iframe> on an attacker-controlled page and clicked
+# through via UI redressing.
+
+
+if __name__ == "__main__":
+    if not DB_PATH.exists():
+        init_db()
+    app.run(host="127.0.0.1", port=5000, debug=False)

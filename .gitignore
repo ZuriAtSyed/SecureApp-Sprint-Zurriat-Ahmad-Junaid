@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+instance/
+*.db
+app/uploads/*
+!app/uploads/.gitkeep
+native/*.o
+native/parser
+native/parser_fixed
+.env
+*.log
+.DS_Store

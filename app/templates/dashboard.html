@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - SecureShare{% endblock %}
+{% block content %}
+<h2>My files</h2>
+<p><a class="btn" href="{{ url_for('upload') }}">+ Upload a file</a></p>
+<table>
+  <tr><th>#</th><th>Name</th><th>Title</th><th>Uploaded</th><th></th></tr>
+  {% for f in files %}
+  <tr>
+    <td>{{ f.id }}</td>
+    <td><a href="{{ url_for('view_file', file_id=f.id) }}">{{ f.display_name }}</a></td>
+    <td>{{ f.title }}</td>
+    <td>{{ f.uploaded_at }}</td>
+    <td>
+      <form class="inline" method="post" action="{{ url_for('delete_file', file_id=f.id) }}">
+        <button class="btn danger" type="submit">Delete</button>
+      </form>
+    </td>
+  </tr>
+  {% else %}
+  <tr><td colspan="5">No files yet.</td></tr>
+  {% endfor %}
+</table>
+<p style="margin-top:24px;color:#888;font-size:0.85em;">Tip: file IDs are visible in links above - try changing the number in a file's URL to see another user's file.</p>
+{% endblock %}

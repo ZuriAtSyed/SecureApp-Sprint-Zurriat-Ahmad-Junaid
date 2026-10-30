@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{% block title %}SecureShare{% endblock %}</title>
+  <style>
+    body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 720px; margin: 40px auto; color: #1c1e21; }
+    header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 24px; }
+    header a { color: #0b5fff; text-decoration: none; font-weight: 600; }
+    .brand { font-size: 1.3em; font-weight: 700; color: #0b5fff; }
+    .flash { background: #fff3cd; border: 1px solid #ffe69c; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #eee; }
+    .btn { display: inline-block; padding: 6px 12px; border-radius: 6px; border: none; background: #0b5fff; color: #fff; cursor: pointer; font-size: 0.9em; }
+    .btn.danger { background: #d93025; }
+    .btn.secondary { background: #6b7280; }
+    input[type=text], input[type=password], input[type=file] { padding: 8px; width: 100%; box-sizing: border-box; margin: 6px 0 14px; border: 1px solid #ccc; border-radius: 6px; }
+    form.inline { display: inline; }
+    code { background: #f1f1f1; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="brand">SecureShare</span>
+    <nav>
+      {% if session.get('user_id') %}
+        <span>Signed in as <strong>{{ session.get('username') }}</strong></span>
+        &nbsp;|&nbsp;<a href="{{ url_for('upload') }}">Upload</a>
+        &nbsp;|&nbsp;<a href="{{ url_for('logout') }}">Logout</a>
+      {% else %}
+        <a href="{{ url_for('login') }}">Login</a>
+        &nbsp;|&nbsp;<a href="{{ url_for('register') }}">Register</a>
+      {% endif %}
+    </nav>
+  </header>
+
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      {% for m in messages %}
+        <div class="flash">{{ m }}</div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
