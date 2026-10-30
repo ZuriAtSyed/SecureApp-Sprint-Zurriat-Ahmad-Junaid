@@ -33,7 +33,13 @@ BASE_DIR = Path(__file__).resolve().parent
 UPLOAD_DIR = BASE_DIR / "uploads"
 EXPORT_DIR = BASE_DIR / "exports"
 DB_PATH = BASE_DIR / "secureshare.db"
-NATIVE_PARSER = BASE_DIR.parent / "native" / "parser"  # vulnerable binary
+# FIX (Buffer Overflow, CWE-121): the app now calls the remediated
+# native/parser_fixed binary (bounds-checked snprintf, built with
+# -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie) instead of the
+# vulnerable native/parser. See native/parser.c vs native/parser_fixed.c
+# and docs/SECURITY_IMPLEMENTATION.md for the before/after evidence.
+NATIVE_PARSER = BASE_DIR.parent / "native" / "parser_fixed"
+TITLE_MAX_LEN = 63  # must match TITLE_MAX-1 in native/parser_fixed.c
 
 UPLOAD_DIR.mkdir(exist_ok=True)
 EXPORT_DIR.mkdir(exist_ok=True)
@@ -212,6 +218,15 @@ def upload():
         title = request.form.get("title", "").strip() or "untitled"
         if not f or f.filename == "":
             flash("Choose a file first.")
+            return render_template("upload.html")
+
+        # FIX (defense-in-depth for CWE-121, see fix/buffer-overflow):
+        # reject an over-long title at the web layer too, in addition to
+        # native/parser_fixed.c's own bounds check, so bad input is
+        # rejected as early as possible and the native helper is never
+        # even invoked with it.
+        if len(title.encode("utf-8")) > TITLE_MAX_LEN:
+            flash(f"Title is too long (max {TITLE_MAX_LEN} characters).")
             return render_template("upload.html")
 
         safe_name = secure_filename(f.filename)
