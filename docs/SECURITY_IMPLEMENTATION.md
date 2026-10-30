@@ -1,6 +1,6 @@
 # Security Implementation Report
 **Project:** SecureShare | **Course:** CYC386 Midterm Lab Exam
-**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020)
+**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020), Junaid (FA23-BCT-057)
 **Date:** 2026-10-30
 
 For each of the five mandatory vulnerability classes: the vulnerable code,

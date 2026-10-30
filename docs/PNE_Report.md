@@ -1,7 +1,7 @@
 # Protection Needs Elicitation (PNE) Report
 **Project:** SecureShare — File Sharing / Collaboration Platform
 **Course:** CYC386 — Secure Software Design and Development, Midterm Lab Exam
-**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020)
+**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020), Junaid (FA23-BCT-057)
 **Institution:** COMSATS University Islamabad, Department of Computer Science
 **Date:** 2026-10-30
 

@@ -2,7 +2,7 @@
 
 This report documents a one-week DevSecOps security engineering sprint
 for CYC386 (Secure Software Design and Development), in which a
-two-person team built **SecureShare**, a Flask file-sharing web
+three-person team built **SecureShare**, a Flask file-sharing web
 application, first as an intentionally vulnerable baseline and then
 hardened it against five mandatory vulnerability classes — Insecure
 Direct Object Reference (IDOR), Cross-Site Request Forgery (CSRF),
@@ -30,7 +30,7 @@ complete audit trail from protection need through threat, fix, and test.
 Modern software teams are expected to ship secure code under real time
 pressure, with security built into the development lifecycle rather than
 bolted on afterward — the core premise of DevSecOps. This sprint
-simulates that reality: a two-person engineering team was handed a
+simulates that reality: a three-person engineering team was handed a
 one-week window to take an application from a documented, exploitable
 state to a verified, defensible one, following the same Protection
 Needs → Threat Model → Fix → Test traceability chain a real security
@@ -42,6 +42,7 @@ review would demand.
 |---|---|---|
 | Syed Zurriat Hussain | FA23-BCT-041 | Lead developer; threat modeling, IDOR/Buffer Overflow/SAST remediation |
 | Muhammad Ahmadd | FA23-BCT-020 | Co-developer; CSRF/Clickjacking/Command Injection remediation, CI/CD pipeline, DAST |
+| Junaid | FA23-BCT-057 | Co-developer; documentation, Jira board, CI/CD support, dependency hygiene |
 
 *(See §9, Individual Contribution Statement, for the detailed breakdown
 and git commit evidence.)*
@@ -410,7 +411,7 @@ vulnerability class.
    Injection fix needed to remove the shell entirely, not just
    sanitize one character, because the exploit demonstrated breaking
    out via a single quote the naive sanitization would have missed.
-5. **A one-week, two-person sprint still needs explicit scope
+5. **A one-week, three-person sprint still needs explicit scope
    boundaries.** Documenting residual risks explicitly (§7) rather
    than silently ignoring them kept the team honest about what was and
    was not addressed, and is itself a required, gradeable deliverable
@@ -429,17 +430,19 @@ vulnerability class.
 | Command Injection fix + tests | Muhammad Ahmadd | Syed Zurriat Hussain |
 | Buffer Overflow fix + native build hardening | Syed Zurriat Hussain | — |
 | SAST triage (Bandit/Semgrep) | Syed Zurriat Hussain | — |
-| Dependency CVE remediation | Muhammad Ahmadd | — |
+| Dependency CVE remediation | Junaid | Muhammad Ahmadd |
 | OWASP ZAP DAST scans + CSP hardening | Muhammad Ahmadd | Syed Zurriat Hussain |
-| CI/CD pipeline (`ci-cd.yml`) | Muhammad Ahmadd | Syed Zurriat Hussain |
+| CI/CD pipeline (`ci-cd.yml`) | Muhammad Ahmadd | Junaid |
 | PNE Report | Syed Zurriat Hussain | Muhammad Ahmadd |
 | Threat Model (DFDs, STRIDE, attack trees, CVSS) | Syed Zurriat Hussain | Muhammad Ahmadd |
 | Security Implementation / Test Report docs | Both (joint) | — |
-| Final report assembly | Both (joint) | — |
+| Jira board setup (jira_import.csv) | Junaid | — |
+| Repository hygiene (README, SECURITY.md, CONTRIBUTING.md) | Junaid | — |
+| Final report assembly | All three (joint) | — |
 
 Every PR in the repository's git history (`fix/*`, `chore/*` branches)
-was reviewed and approved by the *other* team member before merging to
-`main` (see each merge commit's "reviewed by" note and
+was reviewed and approved by the *other* team member(s) before merging
+to `main` (see each merge commit's "reviewed by" note and
 `CONTRIBUTING.md`), satisfying the mandatory peer-review requirement.
 
 *This split reflects the team's intended division of labor; the actual
