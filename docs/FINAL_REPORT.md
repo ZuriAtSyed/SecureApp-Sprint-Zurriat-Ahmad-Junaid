@@ -352,6 +352,14 @@ non-zero (**fail the build**) against `vulnerable-baseline` and exit 0
 (**pass**) against `secure-release`, confirming the pipeline functions as
 an effective security gate, not just a descriptive label.
 
+The full repository — all 13 branches (`main`, 5× `fix/*`, 3× `chore/*`,
+4× supporting `docs/*`/`feature/*`) and both tags (`vulnerable-baseline`,
+`secure-release`) — is published at
+[github.com/ZuriAtSyed/SecureApp-Sprint-Zurriat-Ahmad-Junaid](https://github.com/ZuriAtSyed/SecureApp-Sprint-Zurriat-Ahmad-Junaid),
+which triggers this CI/CD pipeline on every push (Figure 6).
+
+<div class="figure full"><img src="../Screenshots/13_github_push_success.png" alt="GitHub push success"><div class="caption">Figure 6. All branches and tags pushed successfully to GitHub.</div></div>
+
 ---
 
 # 7. CIA Triad / Residual Risk Analysis
