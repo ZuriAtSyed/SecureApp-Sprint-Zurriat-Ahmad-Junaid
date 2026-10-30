@@ -110,6 +110,7 @@ before/after results, including a DAST (OWASP ZAP) pass.
 | `fix/buffer-overflow` | Bounds-checked native parser (CWE-121) | `a14c0a7` |
 | `chore/sast-triage` | Triaged remaining Semgrep false positives | `4f70bc4` |
 | `fix/dependency-werkzeug` | Resolved 7 known Werkzeug CVEs | `26a9141` |
+| `chore/csp-hardening` | Strict CSP (all directives locked to `'self'`) from DAST findings | `2742df6` |
 
 ## Demo Accounts (lab only — never use these patterns in production)
 
