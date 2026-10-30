@@ -4,7 +4,7 @@ A minimal Flask file-sharing web app, built as the lab target for
 **CYC386 — Secure Software Design and Development** (Midterm Lab Exam,
 Fall 2026, COMSATS University Islamabad).
 
-**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020)
+**Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020), Junaid (FA23-BCT-057)
 
 SecureShare was first built as an intentionally vulnerable baseline
 (tag [`vulnerable-baseline`](../../tree/vulnerable-baseline)) containing

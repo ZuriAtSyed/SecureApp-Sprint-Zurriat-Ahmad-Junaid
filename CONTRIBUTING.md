@@ -34,7 +34,7 @@ team for the CYC386 Midterm Lab Exam sprint (CDF §6.1).
    it addresses (if applicable), and how it was verified.
 5. **At least one other team member reviews and approves** before merge
    (CDF requirement: "at least one peer review per PR"). For this
-   two-person team, Syed Zurriat Hussain and Muhammad Ahmadd
+   three-person team, Syed Zurriat Hussain, Muhammad Ahmadd, and Junaid
    cross-reviewed each other's fix branches — see each merge commit
    message for the named reviewer.
 6. Merge with `--no-ff` (a real merge commit, not a fast-forward) so the
