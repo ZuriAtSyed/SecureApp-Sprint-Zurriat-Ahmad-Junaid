@@ -5,6 +5,9 @@ A minimal Flask file-sharing web app, built as the lab target for
 Fall 2026, COMSATS University Islamabad).
 
 **Team:** Syed Zurriat Hussain (FA23-BCT-041), Muhammad Ahmadd (FA23-BCT-020), Junaid (FA23-BCT-057)
+**Repository:** https://github.com/ZuriAtSyed/SecureApp-Sprint-Zurriat-Ahmad-Junaid
+
+[![CI/CD](https://github.com/ZuriAtSyed/SecureApp-Sprint-Zurriat-Ahmad-Junaid/actions/workflows/ci-cd.yml/badge.svg)](https://github.com/ZuriAtSyed/SecureApp-Sprint-Zurriat-Ahmad-Junaid/actions/workflows/ci-cd.yml)
 
 SecureShare was first built as an intentionally vulnerable baseline
 (tag [`vulnerable-baseline`](../../tree/vulnerable-baseline)) containing
