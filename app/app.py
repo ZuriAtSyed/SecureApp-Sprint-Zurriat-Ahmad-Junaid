@@ -23,6 +23,7 @@ from flask import (
     Flask, g, request, redirect, url_for, render_template,
     session, flash, send_from_directory, abort
 )
+from flask_wtf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -36,8 +37,20 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 EXPORT_DIR.mkdir(exist_ok=True)
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = "lab-only-dev-secret-change-me"  # dev only
+app.config["SECRET_KEY"] = os.environ.get(
+    "SECRET_KEY", "lab-only-dev-secret-change-me"  # dev fallback only
+)
 app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # 5 MB
+
+# --------------------------------------------------------------------------
+# FIX (CSRF, CWE-352): synchronizer-token CSRF protection on every
+# state-changing (POST/PUT/PATCH/DELETE) request, plus SameSite cookies
+# as defense-in-depth. See fix/csrf branch / docs/SECURITY_IMPLEMENTATION.md.
+# --------------------------------------------------------------------------
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("FLASK_ENV") == "production"
+csrf = CSRFProtect(app)
 
 
 # --------------------------------------------------------------------------
@@ -261,11 +274,11 @@ def delete_file(file_id):
     db = get_db()
     user = current_user()
     file_row = get_owned_file_or_403(db, file_id, user)
-    # VULNERABLE (CSRF): relies solely on the session cookie for
-    # authorization. No CSRF token is required, so a third-party page
-    # can auto-submit a hidden form to this URL and delete the user's
-    # file while their browser silently attaches the session cookie.
-    # Fixed on fix/csrf (see below for the CSRFProtect-covered version).
+    # FIXED (was VULNERABILITY 2: CSRF / CWE-352): this POST is now
+    # covered by app-wide CSRFProtect (see csrf = CSRFProtect(app) above).
+    # Flask-WTF validates the hidden csrf_token field on every POST and
+    # rejects the request with a 400 if it is missing or invalid, so a
+    # forged cross-site form submission can no longer delete this file.
     (UPLOAD_DIR / file_row["stored_name"]).unlink(missing_ok=True)
     db.execute("DELETE FROM files WHERE id = ?", (file_id,))
     db.commit()

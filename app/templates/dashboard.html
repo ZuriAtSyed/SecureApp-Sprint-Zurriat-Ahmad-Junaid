@@ -13,6 +13,7 @@
     <td>{{ f.uploaded_at }}</td>
     <td>
       <form class="inline" method="post" action="{{ url_for('delete_file', file_id=f.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button class="btn danger" type="submit">Delete</button>
       </form>
     </td>
@@ -20,6 +21,4 @@
   {% else %}
   <tr><td colspan="5">No files yet.</td></tr>
   {% endfor %}
-</table>
-<p style="margin-top:24px;color:#888;font-size:0.85em;">Tip: file IDs are visible in links above - try changing the number in a file's URL to see another user's file.</p>
-{% endblock %}
+</table>{% endblock %}

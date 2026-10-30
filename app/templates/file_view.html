@@ -9,6 +9,7 @@
 
 <h3>Export</h3>
 <form method="post" action="{{ url_for('export_file', file_id=file.id) }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <label>Export file name</label>
   <input type="text" name="export_name" value="export.bin">
   <button class="btn secondary" type="submit">Export copy</button>

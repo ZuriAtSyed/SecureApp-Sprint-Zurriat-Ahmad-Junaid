@@ -32,17 +32,38 @@ def client(tmp_path, monkeypatch):
         yield c
 
 
+def get_csrf_token(client, url):
+    """Fetch `url` and pull the csrf_token hidden-field value out of the
+    rendered HTML, the way a real browser submitting that form would."""
+    import re
+
+    page = client.get(url).get_data(as_text=True)
+    m = re.search(r'name="csrf_token" value="([^"]+)"', page)
+    assert m, f"csrf_token hidden field not found on {url}"
+    return m.group(1)
+
+
 def register_and_login(client, username, password="Passw0rd!123"):
-    client.post("/register", data={"username": username, "password": password})
-    client.post("/login", data={"username": username, "password": password})
+    token = get_csrf_token(client, "/register")
+    client.post("/register", data={
+        "username": username, "password": password, "csrf_token": token,
+    })
+    token = get_csrf_token(client, "/login")
+    client.post("/login", data={
+        "username": username, "password": password, "csrf_token": token,
+    })
 
 
 def upload_file(client, title, content=b"secret content", filename="f.txt"):
     import io
 
+    token = get_csrf_token(client, "/upload")
     resp = client.post(
         "/upload",
-        data={"title": title, "file": (io.BytesIO(content), filename)},
+        data={
+            "title": title, "file": (io.BytesIO(content), filename),
+            "csrf_token": token,
+        },
         content_type="multipart/form-data",
         follow_redirects=True,
     )
