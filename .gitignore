@@ -9,6 +9,8 @@ app/uploads/*
 native/*.o
 native/parser
 native/parser_fixed
+native/parser_asan
+native/parser_fixed_asan
 .env
 *.log
 .DS_Store
