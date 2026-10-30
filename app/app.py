@@ -105,6 +105,29 @@ def login_required(view):
 
 
 # --------------------------------------------------------------------------
+# FIX (IDOR, CWE-639): centralized object-level authorization.
+#
+# Every route that touches a `files` row MUST go through this helper
+# instead of querying `files` directly by id. It enforces that the
+# requesting user owns the resource before it is ever returned, so
+# authorization can never be accidentally skipped on a new endpoint.
+# Security requirement satisfied: "object-level authorization on every
+# resource access" (docs/PNE_Report.md).
+# --------------------------------------------------------------------------
+def get_owned_file_or_403(db, file_id, user):
+    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
+    if not file_row:
+        abort(404)
+    if file_row["owner_id"] != user["id"]:
+        app.logger.warning(
+            "IDOR attempt blocked: user_id=%s tried to access file_id=%s "
+            "owned by user_id=%s", user["id"], file_id, file_row["owner_id"],
+        )
+        abort(403)
+    return file_row
+
+
+# --------------------------------------------------------------------------
 # Routes - auth
 # --------------------------------------------------------------------------
 @app.route("/register", methods=["GET", "POST"])
@@ -193,19 +216,17 @@ def upload():
 
 
 # --------------------------------------------------------------------------
-# VULNERABILITY 1: IDOR (Insecure Direct Object Reference)
+# FIXED (was VULNERABILITY 1: IDOR / CWE-639) - see fix/idor branch.
+# Every lookup now goes through get_owned_file_or_403(), which returns
+# 403 Forbidden for any file the caller does not own, instead of
+# returning the first row that matches the id regardless of ownership.
 # --------------------------------------------------------------------------
 @app.route("/file/<int:file_id>")
 @login_required
 def view_file(file_id):
     db = get_db()
-    # VULNERABLE: looks up the file by ID only - no check that the file
-    # belongs to the logged-in user. Any authenticated user can view any
-    # other user's file metadata/content by simply changing the ID in the
-    # URL (e.g. /file/1, /file/2, /file/3 ...).
-    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
-    if not file_row:
-        abort(404)
+    user = current_user()
+    file_row = get_owned_file_or_403(db, file_id, user)
 
     # Native helper call used to render the file's "title" field.
     # (This is also the Buffer Overflow attack surface - see native/parser.c)
@@ -226,9 +247,8 @@ def view_file(file_id):
 @login_required
 def download_file(file_id):
     db = get_db()
-    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
-    if not file_row:
-        abort(404)
+    user = current_user()
+    file_row = get_owned_file_or_403(db, file_id, user)
     return send_from_directory(UPLOAD_DIR, file_row["stored_name"])
 
 
@@ -240,17 +260,15 @@ def download_file(file_id):
 def delete_file(file_id):
     db = get_db()
     user = current_user()
-    file_row = db.execute("SELECT * FROM files WHERE id = ?", (file_id,)).fetchone()
-    if not file_row:
-        abort(404)
-    # VULNERABLE: relies solely on the session cookie for authorization.
-    # No CSRF token is required, so a third-party page can auto-submit a
-    # hidden form to this URL and delete the victim's file while their
-    # browser silently attaches the session cookie.
-    if file_row["owner_id"] == user["id"]:
-        (UPLOAD_DIR / file_row["stored_name"]).unlink(missing_ok=True)
-        db.execute("DELETE FROM files WHERE id = ?", (file_id,))
-        db.commit()
+    file_row = get_owned_file_or_403(db, file_id, user)
+    # VULNERABLE (CSRF): relies solely on the session cookie for
+    # authorization. No CSRF token is required, so a third-party page
+    # can auto-submit a hidden form to this URL and delete the user's
+    # file while their browser silently attaches the session cookie.
+    # Fixed on fix/csrf (see below for the CSRFProtect-covered version).
+    (UPLOAD_DIR / file_row["stored_name"]).unlink(missing_ok=True)
+    db.execute("DELETE FROM files WHERE id = ?", (file_id,))
+    db.commit()
     return redirect(url_for("dashboard"))
 
 
@@ -262,11 +280,7 @@ def delete_file(file_id):
 def export_file(file_id):
     db = get_db()
     user = current_user()
-    file_row = db.execute(
-        "SELECT * FROM files WHERE id = ? AND owner_id = ?", (file_id, user["id"])
-    ).fetchone()
-    if not file_row:
-        abort(404)
+    file_row = get_owned_file_or_403(db, file_id, user)
 
     export_name = request.form.get("export_name", "export")
     src = UPLOAD_DIR / file_row["stored_name"]

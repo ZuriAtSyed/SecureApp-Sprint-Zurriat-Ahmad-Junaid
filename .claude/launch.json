@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "secureshare",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["app/app.py"],
+      "port": 5000
+    }
+  ]
+}
