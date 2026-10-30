@@ -14,3 +14,4 @@ native/parser_fixed_asan
 .env
 *.log
 .DS_Store
+.pytest_cache/
