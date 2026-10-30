@@ -1,0 +1,157 @@
+name: CI/CD - Build, Test & Security Gate
+
+# Runs on every push and PR to main/develop, per the assignment's
+# mandatory CI/CD requirement (CDF Unit 6.6). The security-scan job
+# FAILS THE BUILD (non-zero exit) on any High/Critical SAST finding or
+# known-vulnerable dependency, so a regression of any of the five fixed
+# vulnerability classes cannot merge silently.
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  # --------------------------------------------------------------------
+  # Stage 1: build native code + unit/integration tests
+  # --------------------------------------------------------------------
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Build native parser (production-hardened build)
+        run: |
+          cd native
+          make parser_fixed
+          # Build the vulnerable binary too, ONLY for the regression test
+          # suite's own before/after evidence - never shipped as an artifact.
+          make parser
+
+      - name: Run unit/integration test suite
+        run: |
+          python -m pytest tests/ -v --junitxml=test-results.xml
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results.xml
+
+      - name: Upload native build artifacts (fixed binary only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-parser-fixed
+          path: native/parser_fixed
+
+  # --------------------------------------------------------------------
+  # Stage 2: SAST (Bandit + Semgrep) + dependency audit
+  # Fails the job (and therefore the required check) on any High/Critical
+  # finding, per CDF 6.6 "pipeline must exit non-zero on critical/high".
+  # --------------------------------------------------------------------
+  sast:
+    name: SAST + Dependency Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install scanners
+        run: pip install bandit semgrep pip-audit
+
+      - name: Bandit (fail on High severity, High confidence)
+        run: |
+          bandit -r app/ -f json -o bandit-report.json || true
+          bandit -r app/ -f txt
+          # Hard gate: fail the build if any High+ severity / High+
+          # confidence issue is present (our fixed baseline has none).
+          bandit -r app/ -lll -iii
+
+      - name: Semgrep (fail on ERROR severity)
+        run: |
+          semgrep --config=auto app/ --json --output=semgrep-report.json || true
+          semgrep --config=auto app/ --severity=ERROR --error
+
+      - name: pip-audit (fail on any known CVE)
+        run: pip-audit -r requirements.txt
+
+      - name: Upload SAST reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-reports
+          path: |
+            bandit-report.json
+            semgrep-report.json
+
+  # --------------------------------------------------------------------
+  # Stage 3: DAST (OWASP ZAP baseline scan against a running instance)
+  # Runs only after build-and-test + sast succeed. Starts the real app
+  # and points ZAP's baseline scan at it; fails on WARN-or-worse by
+  # default via the action's exit code (tune via .zap/rules.tsv if
+  # specific passive rules need to be downgraded after triage).
+  # --------------------------------------------------------------------
+  dast:
+    name: DAST (OWASP ZAP Baseline)
+    runs-on: ubuntu-latest
+    needs: [build-and-test, sast]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Build native parser (fixed)
+        run: cd native && make parser_fixed
+
+      - name: Seed demo data
+        run: cd app && python3 seed_demo.py
+
+      - name: Start SecureShare
+        run: |
+          cd app
+          nohup python3 app.py > ../app.log 2>&1 &
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:5000/login > /dev/null && break
+            sleep 1
+          done
+
+      - name: ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.12.0
+        with:
+          target: "http://localhost:5000/login"
+          cmd_options: "-a"
+          fail_action: true
+
+      - name: Upload app log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-log
+          path: app.log

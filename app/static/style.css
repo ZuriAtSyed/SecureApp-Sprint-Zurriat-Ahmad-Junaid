@@ -1,0 +1,18 @@
+/* SecureShare stylesheet.
+ * Moved out of an inline <style> block (see fix in base.html) so the
+ * app's Content-Security-Policy can drop 'unsafe-inline' for style-src
+ * entirely - found via the OWASP ZAP DAST scan (docs/SECURITY_TEST_REPORT.md
+ * §4) flagging "CSP: style-src unsafe-inline" once a CSP header existed. */
+body { font-family: -apple-system, Segoe UI, Arial, sans-serif; max-width: 720px; margin: 40px auto; color: #1c1e21; }
+header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; padding-bottom: 12px; margin-bottom: 24px; }
+header a { color: #0b5fff; text-decoration: none; font-weight: 600; }
+.brand { font-size: 1.3em; font-weight: 700; color: #0b5fff; }
+.flash { background: #fff3cd; border: 1px solid #ffe69c; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
+table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #eee; }
+.btn { display: inline-block; padding: 6px 12px; border-radius: 6px; border: none; background: #0b5fff; color: #fff; cursor: pointer; font-size: 0.9em; }
+.btn.danger { background: #d93025; }
+.btn.secondary { background: #6b7280; }
+input[type=text], input[type=password], input[type=file] { padding: 8px; width: 100%; box-sizing: border-box; margin: 6px 0 14px; border: 1px solid #ccc; border-radius: 6px; }
+form.inline { display: inline; }
+code { background: #f1f1f1; padding: 2px 5px; border-radius: 4px; }
