@@ -15,6 +15,8 @@ docs/SECURITY_IMPLEMENTATION.md for before/after evidence of every fix.
 Never deploy this revision outside an isolated lab environment.
 """
 import os
+import re
+import shutil
 import sqlite3
 import subprocess
 from pathlib import Path
@@ -285,9 +287,22 @@ def delete_file(file_id):
     return redirect(url_for("dashboard"))
 
 
+# FIXED (was VULNERABILITY 3: Command Injection / CWE-78) - see
+# fix/command-injection branch.
+#
+# Two independent layers, either of which alone would have stopped the
+# original exploit:
+#   1. No shell is invoked at all anymore. The file copy is done with
+#      shutil.copyfile(), a pure Python/libc call - there is no command
+#      string for shell metacharacters to break out of.
+#   2. `export_name` is still validated against a strict allow-list
+#      (letters, digits, dot, dash, underscore) before use, and rejected
+#      otherwise, as defense-in-depth against path traversal etc. even
+#      though it is never passed to a shell.
 # --------------------------------------------------------------------------
-# VULNERABILITY 3: Command Injection
-# --------------------------------------------------------------------------
+SAFE_EXPORT_NAME = re.compile(r"^[A-Za-z0-9._-]{1,128}$")
+
+
 @app.route("/file/<int:file_id>/export", methods=["POST"])
 @login_required
 def export_file(file_id):
@@ -296,15 +311,17 @@ def export_file(file_id):
     file_row = get_owned_file_or_403(db, file_id, user)
 
     export_name = request.form.get("export_name", "export")
-    src = UPLOAD_DIR / file_row["stored_name"]
-    dst_pattern = EXPORT_DIR / f"{export_name}"
+    if not SAFE_EXPORT_NAME.match(export_name):
+        flash("Invalid export name: use only letters, numbers, '.', '-', '_'.")
+        return redirect(url_for("view_file", file_id=file_id))
 
-    # VULNERABLE: user-controlled `export_name` is interpolated directly
-    # into a shell command string executed with shell=True. An attacker
-    # can inject shell metacharacters (; | && `` $() ) to run arbitrary
-    # commands on the server, e.g. export_name = "x; id > pwned.txt".
-    cmd = f"cp '{src}' '{dst_pattern}'"
-    subprocess.run(cmd, shell=True)
+    src = UPLOAD_DIR / file_row["stored_name"]
+    dst = EXPORT_DIR / export_name
+
+    # FIX: no shell, no string-built command - shutil.copyfile() calls
+    # the OS copy syscalls directly, so there is nothing for shell
+    # metacharacters (; | && `` $() ) to inject into.
+    shutil.copyfile(src, dst)
 
     flash(f"Exported as {export_name}")
     return redirect(url_for("view_file", file_id=file_id))
