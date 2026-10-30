@@ -311,12 +311,24 @@ def export_file(file_id):
 
 
 # --------------------------------------------------------------------------
-# VULNERABILITY 4: Clickjacking
+# FIX (was VULNERABILITY 4: Clickjacking) - see fix/clickjacking branch.
+#
+# Every response now carries X-Frame-Options: DENY and a CSP
+# frame-ancestors 'none' directive (sent together for defence in depth;
+# frame-ancestors is the modern replacement and is honoured by browsers
+# that support CSP, X-Frame-Options covers the rest). This instructs the
+# browser to refuse to render any SecureShare page inside a frame/iframe
+# on any origin, which blocks the UI-redressing attack demonstrated in
+# docs/SECURITY_IMPLEMENTATION.md.
 # --------------------------------------------------------------------------
-# VULNERABLE: no after_request handler here at all, so every response
-# (including the login page and the delete form) can be embedded in a
-# hidden/opacity-0 <iframe> on an attacker-controlled page and clicked
-# through via UI redressing.
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    # Small extra hardening, same spirit as the mandatory header above:
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "same-origin")
+    return response
 
 
 if __name__ == "__main__":
