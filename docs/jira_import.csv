@@ -1,0 +1,55 @@
+Issue Type,Epic Name,Summary,Description,Epic Link,Status,Labels
+Epic,PNE-THREAT,Protection Needs Elicitation & Threat Modeling,"Asset inventory, stakeholder analysis, CIA mapping, STRIDE, attack trees, CVSS scoring. See docs/PNE_Report.md and docs/THREAT_MODEL.pdf.",,Done,sprint-phase-1-2
+Story,,Asset inventory and stakeholder elicitation,"Identify assets (A1-A11) and stakeholders (end user, other user, admin, attacker, dev team). docs/PNE_Report.md §2-3.",PNE-THREAT,Done,pne
+Story,,Elicit protection needs and map to CIA triad,"PN1-PN10 elicited and mapped to Confidentiality/Integrity/Availability. docs/PNE_Report.md §4-5.",PNE-THREAT,Done,pne
+Story,,Derive measurable security requirements SR-1..SR-7,"docs/PNE_Report.md §6, each SR traces to a PN and is verified by a specific test file.",PNE-THREAT,Done,pne
+Story,,Build Context + Level-1 DFDs,"docs/THREAT_MODEL.md/.pdf §1-2.",PNE-THREAT,Done,threat-model
+Story,,Run systematic STRIDE pass over all DFD elements,"Full STRIDE table, docs/THREAT_MODEL.md §3.",PNE-THREAT,Done,threat-model
+Story,,Build 2 attack trees (RCE, unauthorized file access),"docs/THREAT_MODEL.md §4.",PNE-THREAT,Done,threat-model
+Story,,CVSS v3.1 score all High/Critical threats (T1-T5),"docs/THREAT_MODEL.md §5, full vector justification.",PNE-THREAT,Done,threat-model
+Story,,Build prioritized risk register + residual risk statement,"docs/THREAT_MODEL.md §6-7.",PNE-THREAT,Done,threat-model
+Epic,SEC-IDOR,Secure Implementation — IDOR (SEC-2),"Fix CWE-639 on all file routes. CVSS 6.5.",,Done,sprint-phase-3
+Task,,Demonstrate IDOR exploit on vulnerable baseline,"bob reads/downloads alice's confidential file via /file/<id>. Screenshots/04.",SEC-IDOR,Done,vuln-poc
+Task,,Implement get_owned_file_or_403() centralized authZ,"fix/idor branch, commit 2f068c3.",SEC-IDOR,Done,fix
+Task,,Write IDOR regression tests,"tests/test_idor.py, 3 tests.",SEC-IDOR,Done,test
+Task,,Verify fix (403 Forbidden) + screenshot,"Screenshots/09.",SEC-IDOR,Done,verification
+Epic,SEC-CSRF,Secure Implementation — CSRF (SEC-3),"Fix CWE-352 on delete endpoint. CVSS 6.1.",,Done,sprint-phase-3
+Task,,Demonstrate CSRF exploit (forged auto-submit delete),"alice's file deleted via malicious page. Screenshots/05.",SEC-CSRF,Done,vuln-poc
+Task,,Enable Flask-WTF CSRFProtect + SameSite cookies,"fix/csrf branch, commit 5711e12.",SEC-CSRF,Done,fix
+Task,,Write CSRF regression tests,"tests/test_csrf.py, 2 tests.",SEC-CSRF,Done,test
+Task,,Verify fix (400 CSRF token missing) + screenshot,"Screenshots/11.",SEC-CSRF,Done,verification
+Epic,SEC-CLICK,Secure Implementation — Clickjacking (SEC-4),"CVSS 5.7, plus CSP hardening follow-up (SEC-9).",,Done,sprint-phase-3
+Task,,Demonstrate clickjacking (app framed in malicious page),"Screenshots/06.",SEC-CLICK,Done,vuln-poc
+Task,,Add X-Frame-Options + CSP frame-ancestors headers,"fix/clickjacking branch, commit ef97471.",SEC-CLICK,Done,fix
+Task,,Write clickjacking regression tests,"tests/test_clickjacking.py, 2 tests.",SEC-CLICK,Done,test
+Task,,Verify fix (empty iframe, refused) + screenshot,"Screenshots/10.",SEC-CLICK,Done,verification
+Epic,SEC-CMDI,Secure Implementation — Command Injection (SEC-5),"Fix CWE-78 on export endpoint. CVSS 9.9 Critical — highest priority.",,Done,sprint-phase-3
+Task,,Demonstrate command injection (id executed via export_name),"Screenshots/07.",SEC-CMDI,Done,vuln-poc
+Task,,Remove shell=True; use shutil.copyfile + allow-list,"fix/command-injection branch, commit fab7c8a.",SEC-CMDI,Done,fix
+Task,,Write command injection regression tests,"tests/test_command_injection.py, 2 tests.",SEC-CMDI,Done,test
+Task,,Verify fix (rejected by allow-list) + screenshot,"Screenshots/12.",SEC-CMDI,Done,verification
+Epic,SEC-BOF,Secure Implementation — Buffer Overflow (SEC-6),"Fix CWE-121 in native parser. CVSS 7.1 High.",,Done,sprint-phase-3
+Task,,Build vulnerable native/parser.c (strcpy, no bounds check),"Built with mitigations disabled for demo.",SEC-BOF,Done,vuln-poc
+Task,,Demonstrate crash + AddressSanitizer report,"Screenshots/08.",SEC-BOF,Done,vuln-poc
+Task,,Build native/parser_fixed.c with bounds-checked snprintf,"fix/buffer-overflow branch, commit c6afce7. Compiler hardening: -fstack-protector-strong -D_FORTIFY_SOURCE=2 -pie.",SEC-BOF,Done,fix
+Task,,Write buffer overflow regression tests,"tests/test_buffer_overflow.py, 2 tests.",SEC-BOF,Done,test
+Epic,SEC-CICD,CI/CD Pipeline & Security Testing (SEC-1),"GitHub Actions: build, test, SAST, DAST, fail-on-critical.",,Done,sprint-phase-4
+Task,,Write .github/workflows/ci-cd.yml (3 jobs),"build-and-test -> sast -> dast.",SEC-CICD,Done,cicd
+Task,,Run Bandit + Semgrep SAST before/after,"docs/SECURITY_TEST_REPORT.md §1-2. 1 High -> 0, 7 findings -> 0.",SEC-CICD,Done,sast
+Story,,SEC-8: Triage remaining Semgrep false positives,"chore/sast-triage branch, commit d779d9c.",SEC-CICD,Done,sast
+Task,,Run pip-audit dependency scan before/after,"docs/SECURITY_TEST_REPORT.md §3.",SEC-CICD,Done,dependency
+Story,,SEC-7: Fix 7 known Werkzeug CVEs,"fix/dependency-werkzeug branch, commit 57479f9.",SEC-CICD,Done,dependency
+Task,,Run OWASP ZAP DAST scan before/after,"docs/SECURITY_TEST_REPORT.md §4. Corroborates clickjacking/CSRF fixes.",SEC-CICD,Done,dast
+Story,,SEC-9: Harden CSP based on DAST findings,"chore/csp-hardening branch, commit 3100566. Found via ZAP, fixed same sprint.",SEC-CICD,Done,dast
+Task,,Verify CI fail-on-critical gate (vulnerable vs fixed),"docs/SECURITY_TEST_REPORT.md §5.",SEC-CICD,Done,cicd
+Epic,SEC-DOCS,Documentation & Submission,"Reports, repo hygiene, video, board.",,In Progress,sprint-phase-5
+Task,,Write PNE_Report.md,,SEC-DOCS,Done,docs
+Task,,Write THREAT_MODEL.md + convert to PDF,,SEC-DOCS,Done,docs
+Task,,Write SECURITY_IMPLEMENTATION.md,,SEC-DOCS,Done,docs
+Task,,Write SECURITY_TEST_REPORT.md,,SEC-DOCS,Done,docs
+Task,,Write README.md / SECURITY.md / CONTRIBUTING.md,,SEC-DOCS,Done,docs
+Task,,Assemble 18-30pg IEEE-style FINAL_REPORT.pdf,,SEC-DOCS,Done,docs
+Task,,Push repository to GitHub,,SEC-DOCS,To Do,submission
+Task,,Set up and populate this Jira board,,SEC-DOCS,In Progress,submission
+Task,,Record 6-10 min narrated demo video,,SEC-DOCS,To Do,submission
+Task,,Final submission checklist review,,SEC-DOCS,To Do,submission
