@@ -62,9 +62,13 @@ metadata-parsing helper (Buffer Overflow).
 The traceability chain in `docs/jira_import.csv` (8 Epics, 11 Stories,
 35 Tasks — PNE/Threat Modeling, one Epic per vulnerability class, CI/CD,
 and Documentation) was imported into a live Jira "SecureApp Sprint"
-space, confirmed below.
+space, confirmed below. The source file itself, with its `ID`/`Parent`
+hierarchy columns, is versioned in the repository alongside the rest of
+the documentation.
 
-<div class="figure full"><img src="../Screenshots/20_jira_import_success.png" alt="Jira import success"><div class="caption">Figure 0. Jira import confirmation: 54 work items successfully imported into the SecureApp Sprint space.</div></div>
+<div class="figure full"><img src="../Screenshots/21_github_jira_csv_view.png" alt="jira_import.csv on GitHub"><div class="caption">Figure 0a. jira_import.csv as committed to the repository (docs/jira_import.csv), showing the Epic/Story/Task structure and Parent linkage used for the import.</div></div>
+
+<div class="figure full"><img src="../Screenshots/20_jira_import_success.png" alt="Jira import success"><div class="caption">Figure 0b. Jira import confirmation: 54 work items successfully imported into the SecureApp Sprint space.</div></div>
 
 ## 1.5 Document Map
 
