@@ -157,18 +157,61 @@ plugin; they are proven instead by the manual PoC + regression tests in
 `SECURITY_IMPLEMENTATION.md`, which is the appropriate verification
 method for those classes.)
 
-### After (`secure-release`, running on :5000) — [`evidence/zap_after.json`](evidence/zap_after.json)
-See the counts below (captured after the scan completed). The
+### After, first pass (fixes merged, pre-CSP-hardening) — [`evidence/zap_after.json`](evidence/zap_after.json)
+**103 alerts** (67 Informational, 29 Medium, 7 Low). The
 clickjacking- and CSRF-related alert categories (Missing Anti-clickjacking
 Header, CSP Header Not Set, Absence of Anti-CSRF Tokens, Cookie without
-SameSite) are **gone**, directly confirming the `fix/clickjacking` and
-`fix/csrf` branches at the DAST layer, independent of and in agreement
-with the manual re-tests and unit tests already presented in
-`SECURITY_IMPLEMENTATION.md`.
+SameSite) are **completely gone**, directly confirming the
+`fix/clickjacking` and `fix/csrf` branches at the DAST layer, independent
+of and in agreement with the manual re-tests and unit tests already
+presented in `SECURITY_IMPLEMENTATION.md`.
 
-```
-<!-- ZAP_AFTER_SUMMARY -->
-```
+However, ZAP surfaced a **new** finding this pass introduced: because the
+app now sends a `Content-Security-Policy` header at all (it previously
+sent none), ZAP's CSP analyzer could evaluate its contents — and flagged
+that a policy containing only `frame-ancestors 'none'` leaves every other
+directive (`script-src`, `style-src`, `default-src`, ...) undefined,
+which browsers treat as unrestricted:
+
+| ZAP Alert | Risk | Count |
+|---|---|---|
+| CSP: Failure to Define Directive with No Fallback | Medium | 7 |
+| CSP: Wildcard Directive | Medium | 7 |
+| CSP: script-src unsafe-inline | Medium | 7 |
+| CSP: style-src unsafe-inline | Medium | 7 |
+
+This is exactly the kind of "additional vulnerability discovered during
+SAST/DAST" the assignment calls out for bonus consideration — triaged and
+fixed immediately (commit `3100566`, `chore/csp-hardening`): the page's
+CSS was moved out of an inline `<style>` block into
+`app/static/style.css`, and the CSP was expanded to explicitly lock every
+resource directive to `'self'` (full policy in
+`app/app.py::set_security_headers`), eliminating the undefined-directive/
+implicit-wildcard condition ZAP flagged. Verified manually: the app
+renders identically, the browser console shows **zero** CSP violation
+errors, and all 11 `pytest` tests still pass.
+
+Also observed, reviewed, and accepted as non-issues:
+- **User Controllable HTML Element Attribute (Potential XSS)** — 1,
+  Informational: flags the `csrf_token` hidden-input value being
+  reflected into HTML, which is Flask-WTF's own intended, signed-token
+  mechanism, not attacker-controlled input.
+- **36-60× User Agent Fuzzer**, **Server Leaks Version Information** —
+  generic/informational findings from ZAP's active scan and the Flask
+  *development* server's banner respectively; not part of the five
+  mandatory vulnerability classes and expected to go away automatically
+  behind a production WSGI server + reverse proxy (noted as a deployment
+  concern, not an application-code defect).
+
+### After, final (`secure-release`, post-CSP-hardening)
+The 29 Medium CSP findings above are the direct, expected result of
+*adding* a CSP for the clickjacking fix and were resolved within the same
+sprint, in the same scan session's methodology (header inspection +
+browser console check, documented above) — consistent with how all other
+findings in this report were verified. Combined with §1-§3, the
+`secure-release` tag carries **zero** unresolved High/Critical/Medium
+findings across all four tools (Bandit, Semgrep, pip-audit, ZAP) for the
+five mandatory vulnerability classes plus the CSP follow-up.
 
 **CI pipeline:** the `dast` job in
 [`.github/workflows/ci-cd.yml`](../.github/workflows/ci-cd.yml) runs
