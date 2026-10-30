@@ -367,11 +367,35 @@ def export_file(file_id):
 # browser to refuse to render any SecureShare page inside a frame/iframe
 # on any origin, which blocks the UI-redressing attack demonstrated in
 # docs/SECURITY_IMPLEMENTATION.md.
+#
+# CSP HARDENING (chore/csp-hardening, docs/SECURITY_TEST_REPORT.md §4):
+# the OWASP ZAP DAST scan flagged that a CSP containing only
+# frame-ancestors leaves every other directive (script-src, style-src,
+# default-src, ...) undefined, which browsers treat as unrestricted -
+# equivalent to a wildcard/'unsafe-inline' for those directives. The CSP
+# below explicitly locks every resource type to 'self' and has no
+# fallback-less or wildcard directive. This required moving the page's
+# CSS out of an inline <style> block into app/static/style.css (see
+# base.html), since 'style-src: self' (no 'unsafe-inline') would
+# otherwise have blocked the app's own inline styles.
 # --------------------------------------------------------------------------
+_CSP = (
+    "default-src 'self'; "
+    "script-src 'self'; "
+    "style-src 'self'; "
+    "img-src 'self'; "
+    "font-src 'self'; "
+    "connect-src 'self'; "
+    "form-action 'self'; "
+    "base-uri 'self'; "
+    "frame-ancestors 'none'"
+)
+
+
 @app.after_request
 def set_security_headers(response):
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    response.headers["Content-Security-Policy"] = _CSP
     # Small extra hardening, same spirit as the mandatory header above:
     response.headers.setdefault("X-Content-Type-Options", "nosniff")
     response.headers.setdefault("Referrer-Policy", "same-origin")
