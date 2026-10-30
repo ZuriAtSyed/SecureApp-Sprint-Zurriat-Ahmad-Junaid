@@ -57,7 +57,16 @@ an embeddable web UI (Clickjacking), a server-side export/convert
 feature shelling out to the OS (Command Injection), and a native C
 metadata-parsing helper (Buffer Overflow).
 
-## 1.4 Document Map
+## 1.4 Jira Board
+
+The traceability chain in `docs/jira_import.csv` (8 Epics, 11 Stories,
+35 Tasks — PNE/Threat Modeling, one Epic per vulnerability class, CI/CD,
+and Documentation) was imported into a live Jira "SecureApp Sprint"
+space, confirmed below.
+
+<div class="figure full"><img src="../Screenshots/20_jira_import_success.png" alt="Jira import success"><div class="caption">Figure 0. Jira import confirmation: 54 work items successfully imported into the SecureApp Sprint space.</div></div>
+
+## 1.5 Document Map
 
 This report synthesizes four companion documents, each going into far
 greater depth on its topic:
